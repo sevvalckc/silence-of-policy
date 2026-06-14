@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Silence of Policy — SDG 5 Gap Analysis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+:root{--navy:#0D1B2A;--teal:#1B6CA8;--coral:#C1440E;--green:#2E7D52;--gold:#E0A030;--silver:#8A9BB0;--offwht:#F4F6F8;--white:#FFFFFF;--card:#162233;--card2:#1a2b3c}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--white);overflow-x:hidden}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:4rem 2rem 3rem;position:relative;overflow:hidden}
+#particles{position:absolute;inset:0;pointer-events:none;z-index:0}
+.hero>*{position:relative;z-index:1}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-bottom:1.2rem}
+.hero h1{font-family:'DM Serif Display',serif;font-size:clamp(3rem,8vw,6.5rem);line-height:1.02;letter-spacing:-.02em;margin-bottom:1.2rem;background:linear-gradient(135deg,#fff 0%,#8A9BB0 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:clamp(.95rem,1.8vw,1.2rem);color:var(--silver);max-width:620px;line-height:1.75;margin-bottom:2.5rem}
+.stat-row{display:flex;gap:2.5rem;flex-wrap:wrap;justify-content:center;margin-bottom:3rem}
+.stat{text-align:center}
+.stat-num{font-family:'DM Serif Display',serif;font-size:2.8rem;color:var(--white);line-height:1}
+.stat-label{font-size:.75rem;color:var(--silver);letter-spacing:.05em;margin-top:.3rem}
+.stat-div{width:1px;background:rgba(255,255,255,.1);align-self:stretch}
+.scroll-hint{font-size:.78rem;color:var(--silver);display:flex;align-items:center;gap:.5rem;animation:bounce 2.5s infinite;cursor:default}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+
+/* SECTION */
+.section{padding:5rem 2rem;max-width:1200px;margin:0 auto}
+.section-label{font-family:'JetBrains Mono',monospace;font-size:.68rem;font-weight:600;letter-spacing:.22em;color:var(--gold);text-transform:uppercase;margin-bottom:.75rem}
+.section-title{font-family:'DM Serif Display',serif;font-size:clamp(1.7rem,3.5vw,2.6rem);line-height:1.15;margin-bottom:.9rem}
+.section-desc{color:var(--silver);font-size:.95rem;line-height:1.75;max-width:700px;margin-bottom:2.5rem}
+
+/* MAP */
+.map-wrap{background:var(--card);border-radius:1.5rem;padding:2rem;margin-bottom:1.5rem}
+#map-container{background:#07111c;border-radius:1rem;overflow:hidden;position:relative}
+#map-container svg{width:100%;height:auto;display:block}
+.country-path{stroke:#1a2d42;stroke-width:.5;cursor:pointer;transition:stroke .15s,stroke-width .15s}
+.country-path:hover{stroke:rgba(255,255,255,.5);stroke-width:1.2}
+.country-path.active{stroke:var(--gold);stroke-width:1.8}
+
+/* TOOLTIP */
+#tooltip{position:fixed;background:#0d1b2a;border:1px solid rgba(255,255,255,.12);border-radius:.85rem;padding:1rem 1.25rem;pointer-events:none;opacity:0;transition:opacity .12s;z-index:9999;min-width:190px;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+#tooltip.show{opacity:1}
+.tt-name{font-family:'DM Serif Display',serif;font-size:1.1rem;margin-bottom:.5rem}
+.tt-row{display:flex;justify-content:space-between;align-items:center;font-size:.78rem;color:var(--silver);margin-bottom:.2rem;gap:1rem}
+.tt-val{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:.82rem}
+
+/* LEGEND */
+.legend{display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center}
+.legend-item{display:flex;align-items:center;gap:.45rem;font-size:.78rem;color:var(--silver)}
+.leg-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.cs-bar{height:8px;border-radius:4px;background:linear-gradient(to right,#2166ac,#92c5de,#f7f7f7,#f4a582,#b2182b);flex:1}
+.cs-row{display:flex;align-items:center;gap:.75rem;font-size:.72rem;color:var(--silver);margin-top:1rem}
+
+/* DETAIL PANEL */
+#detail-panel{background:var(--card2);border-radius:1.25rem;padding:2rem;margin-top:1.25rem;border:1px solid rgba(255,255,255,.06);display:none}
+#detail-panel.show{display:block;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.dp-header{display:flex;align-items:center;gap:1.25rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.dp-country{font-family:'DM Serif Display',serif;font-size:2rem}
+.dp-flag{font-size:2rem;line-height:1}
+.dp-badge{padding:.35rem 1rem;border-radius:2rem;font-family:'JetBrains Mono',monospace;font-weight:600;font-size:1.05rem}
+.dp-meta{display:flex;gap:.75rem;flex-wrap:wrap}
+.meta-tag{font-size:.72rem;padding:.22rem .7rem;border-radius:1rem;background:rgba(255,255,255,.06);color:var(--silver);font-family:'JetBrains Mono',monospace}
+.dp-interpretation{background:rgba(255,255,255,.04);border-radius:.75rem;padding:1rem 1.25rem;margin-bottom:1.5rem;font-size:.88rem;color:var(--silver);line-height:1.65;border-left:3px solid}
+.st-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.65rem}
+.st-cell{padding:.7rem 1rem;border-radius:.6rem;font-size:.8rem;display:flex;align-items:center;gap:.75rem;transition:transform .15s}
+.st-cell:hover{transform:translateX(3px)}
+.st-code{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:.78rem;min-width:30px}
+.st-lbl{flex:1;color:rgba(255,255,255,.8)}
+.st-s{font-size:.72rem;font-weight:600;white-space:nowrap}
+.s-gap{background:rgba(193,68,14,.2);border:1px solid rgba(193,68,14,.3)}
+.s-addressed{background:rgba(46,125,82,.2);border:1px solid rgba(46,125,82,.3)}
+.s-proactive{background:rgba(27,108,168,.2);border:1px solid rgba(27,108,168,.3)}
+.s-not_needed{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07)}
+.s-missing{background:rgba(255,255,255,.015);border:1px solid rgba(255,255,255,.04)}
+
+/* FLAG GALLERY */
+.flag-gallery{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:2rem;justify-content:center}
+.flag-card{display:flex;flex-direction:column;align-items:center;gap:.35rem;padding:.6rem .8rem;border-radius:.75rem;cursor:pointer;transition:background .15s,transform .15s;border:1px solid transparent}
+.flag-card:hover{background:var(--card);transform:translateY(-2px)}
+.flag-card.active{background:var(--card);border-color:var(--gold)}
+.flag-emoji{font-size:1.6rem;line-height:1}
+.flag-name{font-size:.65rem;color:var(--silver);text-align:center;max-width:60px;line-height:1.2}
+.flag-score{font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:600}
+
+/* BAR CHART */
+.bar-wrap{display:flex;align-items:flex-end;gap:.9rem;height:230px;margin:2rem 0 0;padding:0}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:.3rem}
+.bar-pval{font-size:.62rem;color:var(--silver);font-style:italic}
+.bar-pct{font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600}
+.bar-fill{width:100%;border-radius:4px 4px 0 0;transition:opacity .2s}
+.bar-fill:hover{opacity:.8}
+.bar-lbl{font-size:.68rem;color:var(--silver);text-align:center;line-height:1.3;margin-top:.4rem}
+.bar-baseline{height:1px;background:rgba(255,255,255,.12);width:100%;margin-bottom:2rem}
+
+/* SUB-TARGET EXPLORER */
+.st-explorer{background:var(--card);border-radius:1.25rem;padding:2rem;margin-top:2rem}
+.st-tabs{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem}
+.st-tab{padding:.4rem .9rem;border-radius:.5rem;font-size:.78rem;font-family:'JetBrains Mono',monospace;cursor:pointer;background:rgba(255,255,255,.05);color:var(--silver);border:1px solid transparent;transition:.15s}
+.st-tab:hover{background:rgba(255,255,255,.1)}
+.st-tab.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+.st-explorer-content{display:none}
+.st-explorer-content.show{display:block;animation:fadeUp .25s ease}
+.st-country-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem}
+.st-country-item{padding:.6rem .9rem;border-radius:.6rem;font-size:.82rem;display:flex;justify-content:space-between;align-items:center}
+
+/* DATA SOURCES */
+.sources-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-top:2rem}
+.src-card{background:var(--card);border-radius:1rem;padding:1.4rem;border:1px solid rgba(255,255,255,.05);cursor:pointer;transition:border-color .2s}
+.src-card:hover{border-color:rgba(255,255,255,.15)}
+.src-card.open{border-color:var(--teal)}
+.src-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+.src-code{font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600;color:var(--teal);min-width:32px}
+.src-name{font-weight:600;font-size:.88rem;flex:1}
+.src-chevron{color:var(--silver);transition:transform .2s;font-size:.8rem}
+.src-card.open .src-chevron{transform:rotate(180deg)}
+.src-body{display:none;margin-top:1rem;font-size:.8rem;color:var(--silver);line-height:1.65}
+.src-card.open .src-body{display:block}
+.src-detail{margin-top:.5rem;display:flex;gap:.5rem;flex-wrap:wrap}
+.src-chip{padding:.15rem .6rem;border-radius:.4rem;background:rgba(255,255,255,.05);font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--silver)}
+
+/* INSIGHTS */
+.insights-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-top:2.5rem}
+.ins-card{background:var(--card);border-radius:1rem;padding:1.75rem;border:1px solid rgba(255,255,255,.05)}
+.ins-num{font-family:'DM Serif Display',serif;font-size:2.8rem;line-height:1;margin-bottom:.5rem}
+.ins-title{font-weight:600;margin-bottom:.5rem;font-size:.92rem}
+.ins-desc{font-size:.82rem;color:var(--silver);line-height:1.65}
+
+/* GGI QUARTILES */
+.q-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:2rem}
+.q-card{background:var(--card);border-radius:.85rem;padding:1.25rem;text-align:center}
+.q-val{font-family:'JetBrains Mono',monospace;font-size:1.5rem;font-weight:600;margin-bottom:.25rem}
+.q-lbl{font-size:.75rem;color:var(--silver)}
+
+/* THEORY CARDS */
+.theory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.25rem;margin-top:2rem}
+.theory-card{background:var(--card);border-radius:1rem;padding:1.5rem;border:1px solid rgba(255,255,255,.05)}
+.theory-author{font-size:.78rem;color:var(--teal);font-style:italic;margin-bottom:.5rem;font-family:'JetBrains Mono',monospace}
+.theory-title{font-weight:600;margin-bottom:.6rem;font-size:.92rem;font-family:'DM Serif Display',serif;font-size:1.05rem}
+.theory-desc{font-size:.82rem;color:var(--silver);line-height:1.65}
+
+/* FOOTER */
+footer{border-top:1px solid rgba(255,255,255,.07);padding:2.5rem 2rem;text-align:center;font-size:.78rem;color:var(--silver);line-height:2}
+footer strong{color:var(--white)}
+
+@media(max-width:640px){
+  .stat-row{gap:1.2rem}
+  .stat-div{display:none}
+  .q-grid{grid-template-columns:repeat(2,1fr)}
+  .bar-wrap{gap:.4rem}
+  .bar-lbl{font-size:.58rem}
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+<canvas id="particles"></canvas>
+<p class="eyebrow">CSSM 550 · Koç University · Şevval Çakıcı · Spring 2025</p>
+<h1>The Silence<br><em>of Policy</em></h1>
+<p class="hero-sub">Mapping context-adjusted SDG 5 coverage gaps in UN Voluntary National Reviews — distinguishing meaningful policy silence from legitimate irrelevance across 42 countries.</p>
+<div class="stat-row">
+  <div class="stat"><div class="stat-num" data-count="42">0</div><div class="stat-label">countries analysed</div></div>
+  <div class="stat-div"></div>
+  <div class="stat"><div class="stat-num" data-count="2131">0</div><div class="stat-label">paragraphs extracted</div></div>
+  <div class="stat-div"></div>
+  <div class="stat"><div class="stat-num" data-count="9">0</div><div class="stat-label">SDG 5 sub-targets</div></div>
+  <div class="stat-div"></div>
+  <div class="stat"><div class="stat-num" data-pct="5.4">0%</div><div class="stat-label">actionable commitments</div></div>
+</div>
+<p class="scroll-hint">↓ explore the map</p>
+</div>
+
+<!-- MAP SECTION -->
+<div class="section">
+<p class="section-label">Interactive World Map</p>
+<h2 class="section-title">Context-Adjusted Gap Score by Country</h2>
+<p class="section-desc">Hover to preview. Click a country or its flag below to see the full sub-target breakdown and an interpretation of its policy stance.</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="leg-dot" style="background:#b2182b"></div>Full gap (1.0)</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#f4a582"></div>High gap</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#f7f7f7"></div>Moderate</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#92c5de"></div>Low gap</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#2166ac"></div>No gap (0.0)</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#1a2d42"></div>Not in sample / N/A</div>
+</div>
+
+<div class="map-wrap">
+  <div id="map-container"></div>
+  <div class="cs-row"><span>0.0</span><div class="cs-bar"></div><span>1.0</span></div>
+</div>
+
+<!-- FLAG GALLERY -->
+<div class="flag-gallery" id="flag-gallery"></div>
+
+<!-- DETAIL PANEL -->
+<div id="detail-panel">
+  <div class="dp-header">
+    <span class="dp-flag" id="dp-flag"></span>
+    <span class="dp-country" id="dp-country"></span>
+    <span class="dp-badge" id="dp-badge"></span>
+    <div class="dp-meta" id="dp-meta"></div>
+  </div>
+  <div class="dp-interpretation" id="dp-interp"></div>
+  <div class="st-grid" id="dp-grid"></div>
+</div>
+</div>
+
+<!-- SUB-TARGET EXPLORER -->
+<div class="section" style="padding-top:0">
+<p class="section-label">Sub-Target Explorer</p>
+<h2 class="section-title">How did each sub-target perform?</h2>
+<p class="section-desc">Select a sub-target to see every country's status on that specific issue.</p>
+<div class="st-explorer">
+  <div class="st-tabs" id="st-tabs"></div>
+  <div id="st-explorer-panels"></div>
+</div>
+</div>
+
+<!-- KEY FINDINGS -->
+<div class="section">
+<p class="section-label">Key Finding 1</p>
+<h2 class="section-title">Reproductive rights & legal discrimination: the largest gaps</h2>
+<p class="section-desc">Among high-need countries, the share that produced NO actionable commitment on each sub-target:</p>
+
+<div class="bar-wrap" id="bar-chart"></div>
+<div class="bar-baseline"></div>
+
+<div class="insights-grid">
+  <div class="ins-card"><div class="ins-num" style="color:var(--coral)">81%</div><div class="ins-title">SDG 5.6 — Reproductive Rights</div><div class="ins-desc">Largest statistically significant gap (p&lt;0.001). 17 of 21 high-need countries produced no actionable commitment on reproductive health or family planning.</div></div>
+  <div class="ins-card"><div class="ins-num" style="color:#d6603a">69.6%</div><div class="ins-title">SDG 5.1 — Legal Discrimination</div><div class="ins-desc">Second largest gap (p=0.018). Countries with low Women, Business and the Law scores systematically avoid committing to legal reform in their VNRs.</div></div>
+  <div class="ins-card"><div class="ins-num" style="color:var(--green)">28.6%</div><div class="ins-title">SDG 5.2 — Gender-Based Violence</div><div class="ins-desc">The only sub-target where the majority of high-need countries DO produce commitments. GBV has become the "safe" domain — consistent with Bumiller (2008).</div></div>
+</div>
+
+<div style="margin-top:4rem">
+<p class="section-label">Key Finding 2</p>
+<h2 class="section-title">Income inequality does not predict policy silence</h2>
+<p class="section-desc">Counterintuitively, Q2 countries show the highest gap — not Q4. Kruskal-Wallis p=0.629: no statistically significant regional or income-group variation. Norm diffusion (True & Mintrom, 2001) may drive language production independently of domestic conditions.</p>
+<div class="q-grid">
+  <div class="q-card"><div class="q-val" style="color:var(--teal)">0.70</div><div class="q-lbl">Q1 — most equal</div></div>
+  <div class="q-card" style="border:1px solid rgba(193,68,14,.4)"><div class="q-val" style="color:var(--coral)">0.75</div><div class="q-lbl">Q2 ← highest gap</div></div>
+  <div class="q-card"><div class="q-val" style="color:var(--silver)">0.60</div><div class="q-lbl">Q3</div></div>
+  <div class="q-card"><div class="q-val" style="color:var(--green)">0.58</div><div class="q-lbl">Q4 — least equal</div></div>
+</div>
+</div>
+</div>
+
+<!-- THEORETICAL FRAMEWORK -->
+<div class="section">
+<p class="section-label">Theoretical Framework</p>
+<h2 class="section-title">Three lenses on policy silence</h2>
+<p class="section-desc">Policy silence is not a neutral gap — it is an analytically meaningful signal. Three bodies of literature explain why.</p>
+<div class="theory-grid">
+  <div class="theory-card"><div class="theory-author">Lombardo, Meier & Verloo (2009)</div><div class="theory-title">Selective Mainstreaming</div><div class="theory-desc">Gender equality rhetoric enters policy documents while structurally challenging issues — unpaid care, GBV — are routinely left without actionable language.</div></div>
+  <div class="theory-card"><div class="theory-author">Bumiller (2008)</div><div class="theory-title">Silence as Political Choice</div><div class="theory-desc">When governments stay silent on gender issues, it is not an oversight. It reflects what states are — and are not — willing to publicly commit to.</div></div>
+  <div class="theory-card"><div class="theory-author">True & Mintrom (2001)</div><div class="theory-title">Norm Diffusion</div><div class="theory-desc">Countries may produce gender equality language because of international normative pressure — not because they face the problem domestically. Norway exemplifies this.</div></div>
+</div>
+</div>
+
+<!-- DATA SOURCES -->
+<div class="section">
+<p class="section-label">Data Sources & Methodology</p>
+<h2 class="section-title">Where the benchmarks come from</h2>
+<p class="section-desc">Each SDG 5 sub-target is paired with an internationally standardized open-access indicator. High-need thresholds are drawn from established international definitions — not from sample-relative medians. Click any card to see details.</p>
+<div class="sources-grid" id="sources-grid"></div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+<strong>The Silence of Policy</strong> · CSSM 550 · Koç University · Spring 2025<br>
+Şevval Çakıcı · Instructor: Merih Angın<br>
+<span style="font-size:.7rem;opacity:.6;display:block;margin-top:.3rem">42 countries · 2,131 paragraphs · 9 SDG 5 sub-targets · NLP pipeline: pdfplumber + sentence-transformers + GPT-4o-mini</span>
+</footer>
+
+<div id="tooltip">
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-row"><span>Gap Score</span><span class="tt-val" id="tt-gap"></span></div>
+  <div class="tt-row"><span>Region</span><span class="tt-val" id="tt-region"></span></div>
+  <div class="tt-row"><span>GGI Quartile</span><span class="tt-val" id="tt-q"></span></div>
+</div>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────
+const GAP = {
+  "Australia":{"gap":null,"region":"EAP","q":"Q1","ggi":0.788,"flag":"🇦🇺"},
+  "Bahrain":{"gap":0.500,"region":"MENA","q":"Q4","ggi":0.602,"flag":"🇧🇭"},
+  "Bangladesh":{"gap":0.000,"region":"SSA2","q":"Q4","ggi":0.718,"flag":"🇧🇩"},
+  "Barbados":{"gap":0.750,"region":"LAC","q":"Q1","ggi":0.782,"flag":"🇧🇧"},
+  "Canada":{"gap":null,"region":"ENA","q":"Q2","ggi":0.770,"flag":"🇨🇦"},
+  "China":{"gap":1.000,"region":"EAP","q":"Q3","ggi":0.678,"flag":"🇨🇳"},
+  "Egypt":{"gap":0.571,"region":"MENA","q":"Q4","ggi":0.625,"flag":"🇪🇬"},
+  "Ethiopia":{"gap":0.667,"region":"SSA","q":"Q4","ggi":0.630,"flag":"🇪🇹"},
+  "Finland":{"gap":null,"region":"ENA","q":"Q1","ggi":0.863,"flag":"🇫🇮"},
+  "Germany":{"gap":null,"region":"ENA","q":"Q1","ggi":0.815,"flag":"🇩🇪"},
+  "Ghana":{"gap":0.250,"region":"SSA","q":"Q3","ggi":0.676,"flag":"🇬🇭"},
+  "Guyana":{"gap":1.000,"region":"LAC","q":"Q2","ggi":0.737,"flag":"🇬🇾"},
+  "Iceland":{"gap":null,"region":"ENA","q":"Q1","ggi":0.912,"flag":"🇮🇸"},
+  "India":{"gap":0.714,"region":"SSA2","q":"Q4","ggi":0.643,"flag":"🇮🇳"},
+  "Indonesia":{"gap":0.500,"region":"SSA2","q":"Q3","ggi":0.697,"flag":"🇮🇩"},
+  "Italy":{"gap":null,"region":"ENA","q":"Q3","ggi":0.705,"flag":"🇮🇹"},
+  "Japan":{"gap":0.500,"region":"EAP","q":"Q4","ggi":0.647,"flag":"🇯🇵"},
+  "Kenya":{"gap":0.667,"region":"SSA","q":"Q3","ggi":0.684,"flag":"🇰🇪"},
+  "Kuwait":{"gap":0.500,"region":"MENA","q":"Q3","ggi":0.639,"flag":"🇰🇼"},
+  "Mongolia":{"gap":1.000,"region":"EAP","q":"Q2","ggi":0.737,"flag":"🇲🇳"},
+  "Mozambique":{"gap":1.000,"region":"SSA","q":"Q2","ggi":0.726,"flag":"🇲🇿"},
+  "Namibia":{"gap":0.667,"region":"SSA","q":"Q1","ggi":0.802,"flag":"🇳🇦"},
+  "Nepal":{"gap":1.000,"region":"SSA2","q":"Q4","ggi":0.680,"flag":"🇳🇵"},
+  "Netherlands":{"gap":null,"region":"ENA","q":"Q3","ggi":0.720,"flag":"🇳🇱"},
+  "New Zealand":{"gap":null,"region":"EAP","q":"Q1","ggi":0.856,"flag":"🇳🇿"},
+  "Nigeria":{"gap":0.167,"region":"SSA","q":"Q4","ggi":0.625,"flag":"🇳🇬"},
+  "Norway":{"gap":null,"region":"ENA","q":"Q1","ggi":0.879,"flag":"🇳🇴"},
+  "Pakistan":{"gap":0.143,"region":"SSA2","q":"Q4","ggi":0.575,"flag":"🇵🇰"},
+  "Papua New Guinea":{"gap":1.000,"region":"EAP","q":"Q4","ggi":0.598,"flag":"🇵🇬"},
+  "Philippines":{"gap":1.000,"region":"SSA2","q":"Q2","ggi":0.791,"flag":"🇵🇭"},
+  "Rwanda":{"gap":0.667,"region":"SSA","q":"Q1","ggi":0.794,"flag":"🇷🇼"},
+  "Saint Lucia":{"gap":0.250,"region":"LAC","q":"Q3","ggi":0.671,"flag":"🇱🇨"},
+  "Saudi Arabia":{"gap":0.800,"region":"MENA","q":"Q4","ggi":0.602,"flag":"🇸🇦"},
+  "South Africa":{"gap":0.500,"region":"SSA","q":"Q2","ggi":0.740,"flag":"🇿🇦"},
+  "Sri Lanka":{"gap":0.000,"region":"SSA2","q":"Q2","ggi":0.724,"flag":"🇱🇰"},
+  "Sweden":{"gap":null,"region":"ENA","q":"Q1","ggi":0.815,"flag":"🇸🇪"},
+  "Thailand":{"gap":0.667,"region":"EAP","q":"Q3","ggi":0.709,"flag":"🇹🇭"},
+  "Trinidad and Tobago":{"gap":1.000,"region":"LAC","q":"Q4","ggi":0.680,"flag":"🇹🇹"},
+  "Turkey":{"gap":0.333,"region":"ENA","q":"Q4","ggi":0.639,"flag":"🇹🇷"},
+  "United Arab Emirates":{"gap":0.000,"region":"MENA","q":"Q3","ggi":0.630,"flag":"🇦🇪"},
+  "Uganda":{"gap":0.500,"region":"SSA","q":"Q3","ggi":0.703,"flag":"🇺🇬"},
+  "Vietnam":{"gap":null,"region":"SSA2","q":"Q3","ggi":0.695,"flag":"🇻🇳"}
+};
+
+const ST_DETAIL = {
+  "Bangladesh":{"5.1":"addressed","5.2":"addressed","5.3":"addressed","5.4":"addressed","5.5":"addressed","5.6":"addressed","5.a":"addressed","5.b":"not_needed","5.c":"addressed"},
+  "Barbados":{"5.1":"gap","5.2":"addressed","5.3":"gap","5.4":"missing","5.5":"gap","5.6":"gap","5.a":"missing","5.b":"not_needed","5.c":"addressed"},
+  "China":{"5.1":"gap","5.2":"not_needed","5.3":"not_needed","5.4":"not_needed","5.5":"gap","5.6":"not_needed","5.a":"not_needed","5.b":"not_needed","5.c":"not_needed"},
+  "Egypt":{"5.1":"gap","5.2":"addressed","5.3":"not_needed","5.4":"gap","5.5":"gap","5.6":"gap","5.a":"gap","5.b":"gap","5.c":"gap"},
+  "Ethiopia":{"5.1":"gap","5.2":"addressed","5.3":"gap","5.4":"gap","5.5":"not_needed","5.6":"gap","5.a":"not_needed","5.b":"not_needed","5.c":"not_needed"},
+  "Ghana":{"5.1":"addressed","5.2":"addressed","5.3":"not_needed","5.4":"gap","5.5":"gap","5.6":"gap","5.a":"gap","5.b":"not_needed","5.c":"gap"},
+  "Guyana":{"5.1":"gap","5.2":"not_needed","5.3":"gap","5.4":"missing","5.5":"gap","5.6":"gap","5.a":"not_needed","5.b":"not_needed","5.c":"missing"},
+  "India":{"5.1":"gap","5.2":"addressed","5.3":"gap","5.4":"missing","5.5":"gap","5.6":"not_needed","5.a":"addressed","5.b":"gap","5.c":"gap"},
+  "Indonesia":{"5.1":"addressed","5.2":"gap","5.3":"not_needed","5.4":"gap","5.5":"addressed","5.6":"gap","5.a":"gap","5.b":"not_needed","5.c":"addressed"},
+  "Japan":{"5.1":"not_needed","5.2":"not_needed","5.3":"not_needed","5.4":"addressed","5.5":"gap","5.6":"not_needed","5.a":"missing","5.b":"not_needed","5.c":"missing"},
+  "Kenya":{"5.1":"gap","5.2":"addressed","5.3":"not_needed","5.4":"gap","5.5":"gap","5.6":"gap","5.a":"gap","5.b":"not_needed","5.c":"not_needed"},
+  "Mongolia":{"5.1":"gap","5.2":"not_needed","5.3":"not_needed","5.4":"gap","5.5":"gap","5.6":"gap","5.a":"missing","5.b":"not_needed","5.c":"missing"},
+  "Mozambique":{"5.1":"gap","5.2":"not_needed","5.3":"gap","5.4":"gap","5.5":"not_needed","5.6":"gap","5.a":"not_needed","5.b":"not_needed","5.c":"not_needed"},
+  "Namibia":{"5.1":"gap","5.2":"not_needed","5.3":"not_needed","5.4":"missing","5.5":"gap","5.6":"gap","5.a":"not_needed","5.b":"not_needed","5.c":"addressed"},
+  "Nepal":{"5.1":"gap","5.2":"not_needed","5.3":"gap","5.4":"gap","5.5":"not_needed","5.6":"gap","5.a":"gap","5.b":"not_needed","5.c":"missing"},
+  "Nigeria":{"5.1":"addressed","5.2":"addressed","5.3":"addressed","5.4":"not_needed","5.5":"gap","5.6":"gap","5.a":"not_needed","5.b":"gap","5.c":"not_needed"},
+  "Pakistan":{"5.1":"addressed","5.2":"addressed","5.3":"addressed","5.4":"not_needed","5.5":"gap","5.6":"gap","5.a":"addressed","5.b":"gap","5.c":"addressed"},
+  "Papua New Guinea":{"5.1":"gap","5.2":"not_needed","5.3":"gap","5.4":"gap","5.5":"gap","5.6":"gap","5.a":"missing","5.b":"not_needed","5.c":"missing"},
+  "Philippines":{"5.1":"gap","5.2":"not_needed","5.3":"not_needed","5.4":"gap","5.5":"not_needed","5.6":"gap","5.a":"gap","5.b":"missing","5.c":"not_needed"},
+  "Rwanda":{"5.1":"not_needed","5.2":"not_needed","5.3":"not_needed","5.4":"missing","5.5":"gap","5.6":"gap","5.a":"not_needed","5.b":"not_needed","5.c":"addressed"},
+  "Saudi Arabia":{"5.1":"gap","5.2":"not_needed","5.3":"not_needed","5.4":"missing","5.5":"gap","5.6":"gap","5.a":"gap","5.b":"gap","5.c":"addressed"},
+  "South Africa":{"5.1":"not_needed","5.2":"addressed","5.3":"not_needed","5.4":"gap","5.5":"not_needed","5.6":"gap","5.a":"not_needed","5.b":"not_needed","5.c":"not_needed"},
+  "Sri Lanka":{"5.1":"addressed","5.2":"addressed","5.3":"not_needed","5.4":"missing","5.5":"not_needed","5.6":"not_needed","5.a":"addressed","5.b":"not_needed","5.c":"not_needed"},
+  "Thailand":{"5.1":"gap","5.2":"not_needed","5.3":"not_needed","5.4":"not_needed","5.5":"gap","5.6":"not_needed","5.a":"not_needed","5.b":"not_needed","5.c":"addressed"},
+  "Trinidad and Tobago":{"5.1":"gap","5.2":"not_needed","5.3":"not_needed","5.4":"missing","5.5":"gap","5.6":"gap","5.a":"not_needed","5.b":"not_needed","5.c":"gap"},
+  "Turkey":{"5.1":"not_needed","5.2":"addressed","5.3":"not_needed","5.4":"not_needed","5.5":"gap","5.6":"not_needed","5.a":"not_needed","5.b":"not_needed","5.c":"not_needed"},
+  "Uganda":{"5.1":"addressed","5.2":"addressed","5.3":"gap","5.4":"gap","5.5":"not_needed","5.6":"gap","5.a":"not_needed","5.b":"not_needed","5.c":"not_needed"},
+  "United Arab Emirates":{"5.1":"addressed","5.2":"not_needed","5.3":"not_needed","5.4":"missing","5.5":"proactive","5.6":"not_needed","5.a":"not_needed","5.b":"not_needed","5.c":"proactive"},
+  "Bahrain":{"5.1":"gap","5.2":"missing","5.3":"missing","5.4":"missing","5.5":"gap","5.6":"missing","5.a":"missing","5.b":"not_needed","5.c":"not_needed"},
+  "Kuwait":{"5.1":"gap","5.2":"missing","5.3":"missing","5.4":"missing","5.5":"gap","5.6":"missing","5.a":"missing","5.b":"not_needed","5.c":"not_needed"}
+};
+
+const ST_LABELS = {"5.1":"Legal discrimination","5.2":"Gender-based violence","5.3":"Child marriage / FGM","5.4":"Unpaid care work","5.5":"Political participation","5.6":"Reproductive rights","5.a":"Land & asset rights","5.b":"Technology access","5.c":"Gender-responsive policy"};
+
+const ST_STATUS = {
+  gap:{label:"Gap",col:"#C1440E"},
+  addressed:{label:"Addressed",col:"#2E7D52"},
+  proactive:{label:"Proactive",col:"#1B6CA8"},
+  not_needed:{label:"Not needed",col:"#3a5068"},
+  missing:{label:"Missing data",col:"#1e2f3f"}
+};
+
+const INTERPRETATIONS = {
+  "Bangladesh":"Gap score 0.0 — positive outlier. Bangladesh demonstrates that high-need countries can produce substantive, measurable commitments. Its reproductive health targets include named actors (MoHFW), baseline data, and measurable goals. Supports Walby's (2005) transformative framing.",
+  "Sri Lanka":"Gap score 0.0 — positive outlier alongside Bangladesh. Despite high-need status on several sub-targets, Sri Lanka's VNR language includes specific institutional commitments across multiple domains, suggesting genuine policy intent rather than rhetorical compliance.",
+  "United Arab Emirates":"Gap score 0.0 — but via a different mechanism: the UAE scores below high-need thresholds on most sub-targets. Its two 'proactive' entries suggest norm-diffusion behaviour — committing to gender issues where no domestic problem is documented.",
+  "Guyana":"Gap score 1.0 — clearest case of meaningful silence. Only 3 gender-tagged paragraphs, none actionable. Gender is referenced only in demographic statistics, never as a policy subject. Consistent with Bumiller's (2008) argument that silence reflects political choice.",
+  "China":"Gap score 1.0 — despite scoring below high-need thresholds on most sub-targets, the single high-need area (political participation) receives no actionable commitment.",
+  "Mongolia":"Gap score 1.0 — high-need on multiple sub-targets but no actionable commitments produced. Only 39 gender-relevant paragraphs extracted, suggesting limited attention to gender in the VNR overall.",
+  "Nepal":"Gap score 1.0 — high rates of child marriage and unpaid care burden, yet no actionable commitments on these issues. Political participation also unaddressed.",
+  "Philippines":"Gap score 1.0 — despite being a regional leader on gender equality discourse, the VNR produced no actionable commitments on the sub-targets where need is documented.",
+  "Papua New Guinea":"Gap score 1.0 — among the most vulnerable countries in the sample. Documented need on child marriage and unpaid care; no actionable commitments produced.",
+  "Mozambique":"Gap score 1.0 — high child marriage rates and legal discrimination documented; VNR language does not translate these into actionable policy.",
+  "Trinidad and Tobago":"Gap score 1.0 — only 40 gender-relevant paragraphs, none actionable on high-need sub-targets.",
+  "Saudi Arabia":"Gap score 0.8 — selective mainstreaming in action. Women are framed almost exclusively through Vision 2030 economic participation language. Structural issues (political participation 5.5, reproductive rights 5.6) are systematically avoided, consistent with Lombardo et al. (2009).",
+  "Norway":"No gap score (NaN) — no domestic high-need sub-targets. Yet Norway produces 24 gender-relevant paragraphs, all mention-only and oriented toward international development cooperation. Classic norm diffusion: language produced for international audiences, not domestic policy.",
+  "Pakistan":"Gap score 0.14 — surprisingly low given Pakistan's GGI ranking. Several sub-targets receive specific, actor-named commitments. This may reflect international accountability pressure or the influence of development partnerships.",
+  "Nigeria":"Gap score 0.17 — low gap despite Q4 GGI placement. Nigeria's VNR includes specific commitments on GBV and child marriage — two areas of documented and acknowledged need.",
+  "Turkey":"Gap score 0.33 — addressed GBV with specific institutional language; political participation gap remains unaddressed.",
+  "Ghana":"Gap score 0.25 — legal discrimination and GBV addressed with some specificity; reproductive rights and political participation gaps remain.",
+  "Saint Lucia":"Gap score 0.25 — small island developing state with limited VNR content; partial coverage of gender issues.",
+  "Indonesia":"Gap score 0.50 — mixed picture: legal discrimination and political participation addressed; GBV and unpaid care gaps remain.",
+  "Japan":"Gap score 0.50 — political participation is the documented high-need area; the VNR does not produce an actionable commitment despite Japan's internationally visible gender gap ranking.",
+  "South Africa":"Gap score 0.50 — GBV addressed specifically; reproductive rights and unpaid care gaps remain.",
+  "Uganda":"Gap score 0.50 — legal discrimination and GBV addressed; child marriage and reproductive rights gaps remain.",
+  "Bahrain":"Gap score 0.50 — limited data availability; gaps on legal discrimination and political participation.",
+  "Kuwait":"Gap score 0.50 — limited data; gaps on legal discrimination and political participation. Kuwait has no elected parliament, structurally limiting 5.5 commitment.",
+  "Egypt":"Gap score 0.57 — GBV addressed; multiple gaps across legal, unpaid care, political participation, and reproductive rights.",
+  "Namibia":"Gap score 0.67 — addressed gender-responsive policy; gaps on legal discrimination, political participation, and reproductive rights.",
+  "Kenya":"Gap score 0.67 — GBV addressed; gaps across legal, unpaid care, political participation, and reproductive rights.",
+  "Ethiopia":"Gap score 0.67 — GBV addressed; child marriage and reproductive rights gaps remain despite high documented need.",
+  "Rwanda":"Gap score 0.67 — gender-responsive policy addressed; political participation and reproductive rights gaps remain. Rwanda's high women-in-parliament rate (63.8%) sits paradoxically alongside a reproductive rights gap.",
+  "Thailand":"Gap score 0.67 — gender-responsive policy addressed; legal discrimination and political participation gaps.",
+  "India":"Gap score 0.71 — GBV and land rights addressed; legal discrimination, child marriage, political participation, internet access, and gender policy gaps remain.",
+  "Barbados":"Gap score 0.75 — GBV and gender-responsive policy addressed; multiple gaps across legal, child marriage, political participation, and reproductive rights."
+};
+
+const SOURCES = [
+  {code:"5.1",name:"Legal Discrimination",src:"Women, Business and the Law (WBL)",org:"World Bank",threshold:"Score < 75 (below OECD average)",year:"2024",url:"https://wbl.worldbank.org",desc:"The WBL index measures laws and regulations affecting women's economic opportunities. 190 countries, annual update, open access.",notes:["0–100 scale, higher = more equal","Covers 8 policy areas: safety, mobility, work, pay, marriage, parenthood, childcare, pension"]},
+  {code:"5.2",name:"Gender-Based Violence",src:"WHO Violence Against Women Estimates",org:"WHO / Our World in Data",threshold:"> 10% IPV in past 12 months",year:"2021",url:"https://www.who.int",desc:"Past 12-month intimate partner violence prevalence. Original WHO 2018 dataset uses lifetime prevalence; this analysis uses the 12-month measure available via Our World in Data.",notes:["161 countries covered","Threshold adjusted from 25% (lifetime) to 10% (12-month) for comparability"]},
+  {code:"5.3",name:"Child Marriage / FGM",src:"UNICEF Child Marriage Database",org:"UNICEF",threshold:"> 20% married by age 18",year:"2023 (Apr update)",url:"https://data.unicef.org",desc:"National estimates of girls married before age 18. Compiled from DHS and MICS surveys.",notes:["100+ countries","UNICEF standard high-prevalence cut-off","12 countries in sample had missing data (mostly high-income, where rate ≈ 0)"]},
+  {code:"5.4",name:"Unpaid Care Work",src:"World Bank / ILOSTAT",org:"World Bank WDI",threshold:"> 3 hours/day gender gap",year:"2023",url:"https://databank.worldbank.org",desc:"Gender gap in unpaid domestic and care work as % of 24 hours, converted to hours/day. Derived from time-use surveys.",notes:["Only 22/42 countries had data","High-income and many low-income countries lack recent time-use surveys","ILO global average benchmark used for threshold"]},
+  {code:"5.5",name:"Political Participation",src:"IPU Parline Monthly Rankings",org:"Inter-Parliamentary Union",threshold:"< 30% women in parliament",year:"2024",url:"https://data.ipu.org",desc:"Monthly-updated data on women's share of lower/single chamber seats. The 30% threshold derives from the Beijing Platform for Action (1995).",notes:["193 countries","Only 1 country (Kuwait) missing — no elected parliament","Monthly updates ensure near-real-time accuracy"]},
+  {code:"5.6",name:"Reproductive Rights",src:"World Bank World Development Indicators",org:"UN Population Division via WDI",threshold:"> 10% unmet need for contraception",year:"2022",url:"https://databank.worldbank.org",desc:"Share of married women aged 15–49 with unmet need for family planning. UN standard definition.",notes:["15 countries missing (mostly high-income, where rate is very low)","Treated as not high-need when missing for high-income countries"]},
+  {code:"5.a",name:"Land & Asset Rights",src:"OECD SIGI 2023",org:"OECD Development Centre",threshold:"SIGI score > 0.3 (medium-high discrimination)",year:"2023",url:"https://stats.oecd.org",desc:"The Social Institutions and Gender Index (SIGI) measures discriminatory social institutions. Subscores cover restricted access to productive and financial resources.",notes:["60+ countries in SIGI 2023","8 countries missing from sample, concentrated in small island states","Higher SIGI score = more discrimination (0–1 scale)"]},
+  {code:"5.b",name:"Technology Access",src:"ITU via World Bank WDI",org:"International Telecommunication Union",threshold:"> 10 percentage point gender gap in internet use",year:"2023",url:"https://databank.worldbank.org",desc:"Gender gap in internet use (male % minus female %) from ITU household surveys, aggregated in World Bank WDI.",notes:["170+ countries — replaces GSMA data (12–23 countries only)","Only 3 countries high-need: small gap globally post-COVID","10pp ITU benchmark for digital gender divide"]},
+  {code:"5.c",name:"Gender-Responsive Policy",src:"V-Dem Dataset v16",org:"Varieties of Democracy Institute",threshold:"Score < 0.5 (below scale midpoint)",year:"2023",url:"https://www.v-dem.net",desc:"Women's Political Empowerment Index from V-Dem, which captures civil liberties, civil society participation, and political power of women. 0–1 scale.",notes:["180+ countries","Replaced V-Dem civil liberties index for better alignment with SDG 5.c definition","Only 3 countries high-need: Kuwait, Papua New Guinea, Saudi Arabia"]}
+];
+
+const ISO_MAP = {"036":"Australia","048":"Bahrain","050":"Bangladesh","052":"Barbados","124":"Canada","156":"China","818":"Egypt","231":"Ethiopia","246":"Finland","276":"Germany","288":"Ghana","328":"Guyana","352":"Iceland","356":"India","360":"Indonesia","380":"Italy","392":"Japan","404":"Kenya","414":"Kuwait","496":"Mongolia","508":"Mozambique","516":"Namibia","524":"Nepal","528":"Netherlands","554":"New Zealand","566":"Nigeria","578":"Norway","586":"Pakistan","598":"Papua New Guinea","608":"Philippines","646":"Rwanda","662":"Saint Lucia","682":"Saudi Arabia","710":"South Africa","144":"Sri Lanka","752":"Sweden","764":"Thailand","780":"Trinidad and Tobago","792":"Turkey","784":"United Arab Emirates","800":"Uganda","704":"Vietnam"};
+
+// ── COLOR ──────────────────────────────────────────────────────
+function gapColor(v){
+  if(v===null||v===undefined)return"#1a2d42";
+  const s=d3.scaleLinear().domain([0,.25,.5,.75,1]).range(["#2166ac","#92c5de","#f7f7f7","#f4a582","#b2182b"]).clamp(true);
+  return s(v);
+}
+
+// ── PARTICLES ─────────────────────────────────────────────────
+(function(){
+  const c=document.getElementById('particles');
+  const ctx=c.getContext('2d');
+  let W,H,pts=[];
+  function resize(){W=c.width=c.offsetWidth;H=c.height=c.offsetHeight}
+  function init(){
+    resize();
+    pts=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+.5,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,a:Math.random()*.4+.1}));
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(p=>{
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(27,108,168,${p.a})`;ctx.fill();
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0)p.x=W;if(p.x>W)p.x=0;
+      if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',resize);
+  init();draw();
+})();
+
+// ── COUNTER ANIMATION ─────────────────────────────────────────
+function animateCounter(el,target,isPct){
+  let start=null;
+  const dur=1800;
+  function step(ts){
+    if(!start)start=ts;
+    const p=Math.min((ts-start)/dur,1);
+    const val=Math.round(p*target);
+    el.textContent=isPct?val+'%':val.toLocaleString();
+    if(p<1)requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const el=e.target;
+      if(el.dataset.count)animateCounter(el,+el.dataset.count,false);
+      if(el.dataset.pct)animateCounter(el,+el.dataset.pct,true);
+      obs.unobserve(el);
+    }
+  });
+},{threshold:.5});
+document.querySelectorAll('[data-count],[data-pct]').forEach(el=>obs.observe(el));
+
+// ── TOOLTIP ──────────────────────────────────────────────────
+const tt=document.getElementById('tooltip');
+function showTT(e,name,d){
+  document.getElementById('tt-name').textContent=name;
+  const gv=document.getElementById('tt-gap');
+  gv.textContent=d.gap!==null?d.gap.toFixed(3):'N/A';
+  gv.style.color=gapColor(d.gap);
+  document.getElementById('tt-region').textContent=d.region;
+  document.getElementById('tt-q').textContent=d.q;
+  tt.classList.add('show');
+  moveTT(e);
+}
+function moveTT(e){
+  tt.style.left=Math.min(e.clientX+16,window.innerWidth-210)+'px';
+  tt.style.top=Math.max(e.clientY-10,10)+'px';
+}
+function hideTT(){tt.classList.remove('show')}
+window.addEventListener('mousemove',moveTT);
+
+// ── DETAIL PANEL ─────────────────────────────────────────────
+let activeCountry=null;
+function showDetail(name,d){
+  activeCountry=name;
+  document.getElementById('dp-flag').textContent=d.flag||'';
+  document.getElementById('dp-country').textContent=name;
+  const badge=document.getElementById('dp-badge');
+  if(d.gap!==null){
+    badge.textContent=d.gap.toFixed(3);
+    badge.style.background=gapColor(d.gap)+'33';
+    badge.style.color=gapColor(d.gap);
+    badge.style.border=`1px solid ${gapColor(d.gap)}66`;
+  } else {
+    badge.textContent='N/A';
+    badge.style.background='rgba(255,255,255,.05)';
+    badge.style.color='#8A9BB0';
+    badge.style.border='1px solid rgba(255,255,255,.1)';
+  }
+  document.getElementById('dp-meta').innerHTML=`
+    <span class="meta-tag">${d.region}</span>
+    <span class="meta-tag">${d.q}</span>
+    <span class="meta-tag">GGI ${d.ggi.toFixed(3)}</span>
+  `;
+  const interp=document.getElementById('dp-interp');
+  const text=INTERPRETATIONS[name]||'No detailed interpretation available for this country.';
+  const borderCol=d.gap===null?'#8A9BB0':gapColor(d.gap);
+  interp.textContent=text;
+  interp.style.borderLeftColor=borderCol;
+  const det=ST_DETAIL[name];
+  const grid=document.getElementById('dp-grid');
+  if(det){
+    grid.innerHTML=Object.entries(ST_LABELS).map(([code,lbl])=>{
+      const s=det[code]||'missing';
+      const si=ST_STATUS[s];
+      return`<div class="st-cell s-${s}"><span class="st-code" style="color:${si.col}">${code}</span><span class="st-lbl">${lbl}</span><span class="st-s" style="color:${si.col}">${si.label}</span></div>`;
+    }).join('');
+  } else {
+    grid.innerHTML=`<p style="color:var(--silver);font-size:.85rem;grid-column:1/-1">This country is in the sample but sub-target detail is not available (high-income, all sub-targets below threshold).</p>`;
+  }
+  const panel=document.getElementById('detail-panel');
+  panel.classList.add('show');
+  // sync flag gallery
+  document.querySelectorAll('.flag-card').forEach(el=>{
+    el.classList.toggle('active',el.dataset.name===name);
+  });
+  // sync map
+  d3.selectAll('.country-path').classed('active',false);
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ── MAP ──────────────────────────────────────────────────────
+const W=960,H=480;
+const svg=d3.select('#map-container').append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('preserveAspectRatio','xMidYMid meet');
+const proj=d3.geoNaturalEarth1().scale(153).translate([W/2,H/2]);
+const path=d3.geoPath().projection(proj);
+svg.append('rect').attr('width',W).attr('height',H).attr('fill','#07111c');
+
+fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+.then(r=>r.json())
+.then(world=>{
+  const countries=topojson.feature(world,world.objects.countries);
+  svg.selectAll('.country-path')
+    .data(countries.features).join('path')
+    .attr('class','country-path')
+    .attr('d',path)
+    .attr('fill',d=>{
+      const name=ISO_MAP[String(+d.id).padStart(3,'0')];
+      return name&&GAP[name]?gapColor(GAP[name].gap):'#1a2d42';
+    })
+    .on('mousemove',(e,d)=>{
+      const name=ISO_MAP[String(+d.id).padStart(3,'0')];
+      if(!name||!GAP[name])return;
+      showTT(e,name,GAP[name]);
+    })
+    .on('mouseleave',hideTT)
+    .on('click',(e,d)=>{
+      const name=ISO_MAP[String(+d.id).padStart(3,'0')];
+      if(!name||!GAP[name])return;
+      d3.selectAll('.country-path').classed('active',false);
+      d3.select(e.currentTarget).classed('active',true);
+      showDetail(name,GAP[name]);
+    });
+  const grat=d3.geoGraticule();
+  svg.append('path').datum(grat()).attr('d',path).attr('fill','none').attr('stroke','rgba(255,255,255,.025)').attr('stroke-width',.5);
+});
+
+// ── FLAG GALLERY ─────────────────────────────────────────────
+const gallery=document.getElementById('flag-gallery');
+const sorted=Object.entries(GAP).filter(([,d])=>d.gap!==null).sort((a,b)=>(b[1].gap||0)-(a[1].gap||0));
+const noGap=Object.entries(GAP).filter(([,d])=>d.gap===null);
+[...sorted,...noGap].forEach(([name,d])=>{
+  const card=document.createElement('div');
+  card.className='flag-card';
+  card.dataset.name=name;
+  const scoreText=d.gap!==null?d.gap.toFixed(2):'N/A';
+  const scoreColor=gapColor(d.gap);
+  card.innerHTML=`<span class="flag-emoji">${d.flag||'🌐'}</span><span class="flag-name">${name}</span><span class="flag-score" style="color:${scoreColor}">${scoreText}</span>`;
+  card.addEventListener('click',()=>showDetail(name,d));
+  gallery.appendChild(card);
+});
+
+// ── SUB-TARGET EXPLORER ───────────────────────────────────────
+const tabsEl=document.getElementById('st-tabs');
+const panelsEl=document.getElementById('st-explorer-panels');
+const stCodes=Object.keys(ST_LABELS);
+stCodes.forEach((code,i)=>{
+  const tab=document.createElement('button');
+  tab.className='st-tab'+(i===0?' active':'');
+  tab.textContent=code;
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.st-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.st-explorer-content').forEach(p=>p.classList.remove('show'));
+    document.getElementById(`st-panel-${code.replace('.','_')}`).classList.add('show');
+  });
+  tabsEl.appendChild(tab);
+  const panel=document.createElement('div');
+  panel.className='st-explorer-content'+(i===0?' show':'');
+  panel.id=`st-panel-${code.replace('.','_')}`;
+  const entries=Object.entries(ST_DETAIL)
+    .filter(([,v])=>v[code]&&v[code]!=='missing')
+    .sort((a,b)=>{
+      const order={gap:0,addressed:1,proactive:2,not_needed:3};
+      return (order[a[1][code]]||99)-(order[b[1][code]]||99);
+    });
+  panel.innerHTML=`
+    <p style="font-size:.8rem;color:var(--silver);margin-bottom:1rem"><strong style="color:var(--white)">${ST_LABELS[code]}</strong> — showing ${entries.length} countries with data</p>
+    <div class="st-country-list">${entries.map(([name,v])=>{
+      const s=v[code];const si=ST_STATUS[s];const d=GAP[name];
+      return`<div class="st-country-item s-${s}" style="cursor:pointer" onclick="showDetail('${name}',GAP['${name}'])">
+        <span>${d?.flag||''} ${name}</span>
+        <span class="st-s" style="color:${si.col}">${si.label}</span>
+      </div>`;
+    }).join('')}</div>`;
+  panelsEl.appendChild(panel);
+});
+
+// ── BAR CHART ─────────────────────────────────────────────────
+const bars=[
+  {lbl:"5.4\nUnpaid",pct:83.3,p:"n=6",col:"#C1440E"},
+  {lbl:"5.6\nReprod.",pct:81.0,p:"p<0.001",col:"#b2182b"},
+  {lbl:"5.3\nChild M.",pct:70.0,p:"p=0.18",col:"#C1440E"},
+  {lbl:"5.1\nLegal",pct:69.6,p:"p=0.018",col:"#d6603a"},
+  {lbl:"5.a\nLand",pct:60.0,p:"p=0.47",col:"#e07040"},
+  {lbl:"5.5\nParl.",pct:42.1,p:"p=0.52",col:"#e09030"},
+  {lbl:"5.b\nInternet",pct:33.3,p:"n=3",col:"#2E7D52"},
+  {lbl:"5.2\nGBV",pct:28.6,p:"p=0.06",col:"#1a9850"},
+];
+const bc=document.getElementById('bar-chart');
+bars.forEach(b=>{
+  const h=(b.pct/100)*200;
+  const col=document.createElement('div');col.className='bar-col';
+  col.innerHTML=`<div class="bar-pval">${b.p}</div><div class="bar-pct" style="color:${b.col}">${b.pct}%</div><div class="bar-fill" style="height:${h}px;background:${b.col}"></div><div class="bar-lbl">${b.lbl.replace('\n','<br>')}</div>`;
+  bc.appendChild(col);
+});
+
+// ── DATA SOURCES ──────────────────────────────────────────────
+const sg=document.getElementById('sources-grid');
+SOURCES.forEach(src=>{
+  const card=document.createElement('div');
+  card.className='src-card';
+  card.innerHTML=`
+    <div class="src-header">
+      <span class="src-code">${src.code}</span>
+      <span class="src-name">${src.name}</span>
+      <span class="src-chevron">▼</span>
+    </div>
+    <div class="src-body">
+      <div style="margin-bottom:.6rem"><strong style="color:var(--white)">${src.src}</strong><br><span style="font-size:.75rem;color:var(--teal)">${src.org} · ${src.year}</span></div>
+      <p>${src.desc}</p>
+      <div style="margin:.6rem 0;padding:.5rem .75rem;background:rgba(224,160,48,.1);border-radius:.4rem;font-size:.78rem;color:var(--gold)">Threshold: ${src.threshold}</div>
+      <div class="src-detail">${src.notes.map(n=>`<span class="src-chip">${n}</span>`).join('')}</div>
+      <a href="${src.url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:.75rem;font-size:.75rem;color:var(--teal);text-decoration:none">→ Open dataset</a>
+    </div>`;
+  card.addEventListener('click',()=>{
+    card.classList.toggle('open');
+  });
+  sg.appendChild(card);
+});
+</script>
+</body>
+</html>
