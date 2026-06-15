@@ -32,6 +32,14 @@ This pipeline distinguishes **meaningful silence** from **legitimate silence** b
 
 **GGI quartile does not predict silence** — Kruskal-Wallis p=0.629. Income inequality does not explain which countries are more likely to avoid actionable commitments.
 
+## Visualisations
+
+![Bar Chart](barchart_gap_rates.png)
+*Figure 1. Context-adjusted gap rates by SDG 5 sub-target (38 countries, high-need only)*
+
+![Heatmap](heatmap.png)
+*Figure 2. Context-adjusted SDG 5 policy gap matrix (38 countries × 9 sub-targets)*
+
 ---
 
 ## Repository Structure
